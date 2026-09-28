@@ -1,0 +1,22 @@
+# Kuromi rice — cava audio visualizer
+[general]
+framerate = 60
+bar_width = 2
+bar_spacing = 1
+
+[input]
+method = pipewire
+source = auto
+
+[output]
+method = noncurses
+
+[color]
+gradient = 1
+gradient_color_1 = '#8fd8e0'
+gradient_color_2 = '#9bb5f7'
+gradient_color_3 = '#c3a6f7'
+gradient_color_4 = '#f59ab8'
+
+[smoothing]
+noise_reduction = 77

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "rualisher.powermenu",
+  "name": "Kuromi Power Menu",
+  "version": "1.0.0",
+  "author": "rualisher",
+  "description": "Power menu with a banner: lock, logout, reboot, shutdown",
+  "kinds": ["overlay"],
+  "keepLoaded": true,
+  "entryPoints": { "overlay": "PowerMenu.qml" }
+}

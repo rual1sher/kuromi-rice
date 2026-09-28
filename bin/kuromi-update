@@ -1,0 +1,7 @@
+#!/bin/bash
+# Pull the latest Kuromi rice from GitHub and re-apply it.
+set -e
+
+REPO=$(dirname "$(dirname "$(readlink -f "$0")")")
+git -C "$REPO" pull --ff-only
+"$REPO/install.sh"

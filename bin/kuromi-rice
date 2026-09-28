@@ -1,0 +1,48 @@
+#!/bin/bash
+# Kuromi rice: open cava, tty-clock, live fastfetch and a now-playing panel on a fresh workspace.
+#
+# Layout (dwindle splits the active window):
+#   ┌──────────────┬────────┐
+#   │     cava     │ clock  │
+#   ├──────────────┼────────┤
+#   │     play     │ fetch  │
+#   └──────────────┴────────┘
+
+has_window() {
+  hyprctl clients -j | grep -q "\"class\": \"kuromi-$1\""
+}
+
+# Launch a terminal and wait until its window is mapped, so splits land predictably.
+term() {
+  local name=$1
+  shift
+  uwsm-app -- foot --app-id="kuromi-$name" -e "$@" >/dev/null 2>&1 &
+  for _ in {1..40}; do
+    has_window "$name" && break
+    sleep 0.05
+  done
+  sleep 0.1
+}
+
+# Focus a window and park the cursor in its center; the next window splits it.
+focus() {
+  local x y
+  read -r x y < <(hyprctl clients -j | python3 -c "
+import json, sys
+for c in json.load(sys.stdin):
+    if c['class'] == 'kuromi-$1':
+        print(c['at'][0] + c['size'][0] // 2, c['at'][1] + c['size'][1] // 2)
+        break")
+  hyprctl dispatch "hl.dsp.focus({ window = \"class:kuromi-$1\" })" >/dev/null
+  [[ -n $x ]] && hyprctl dispatch "hl.dsp.cursor.move({ x = $x, y = $y })" >/dev/null
+}
+
+hyprctl dispatch 'hl.dsp.focus({ workspace = "empty" })' >/dev/null
+
+term cava cava
+term clock tty-clock -c -C 2 -s -B
+focus clock
+# Redraw fastfetch in place every second (cursor home + clear tail, no flicker).
+term fetch sh -c 'printf "\033[?25l"; while :; do out=$(fastfetch -c ~/.config/fastfetch/kuromi.jsonc); printf "\033[H%s\033[J" "$out"; sleep 1; done'
+focus cava
+term player "$HOME/.local/bin/kuromi-nowplaying"

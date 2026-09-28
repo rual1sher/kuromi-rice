@@ -1,0 +1,122 @@
+#!/bin/bash
+# Kuromi rice: now-playing panel for Yandex Music (or any MPRIS player).
+# Keys: space = play/pause, n = next, p = previous, +/- = volume, q = quit.
+
+PLAYERS="firefox,chromium,yandex-music,%any"
+
+lav=$'\e[38;2;195;166;247m'
+pink=$'\e[38;2;245;154;184m'
+cyan=$'\e[38;2;143;216;224m'
+dim=$'\e[38;2;107;98;136m'
+fg=$'\e[38;2;221;212;245m'
+bold=$'\e[1m'
+reset=$'\e[0m'
+
+pc() { playerctl -p "$PLAYERS" "$@" 2>/dev/null; }
+
+fmt_time() {
+  local s=${1%.*}
+  [[ -z $s ]] && s=0
+  printf '%d:%02d' $((s / 60)) $((s % 60))
+}
+
+# The whole frame is built in FRAME and written in one go, so the panel never flickers.
+FRAME=""
+
+center() {
+  local text="$1" visible="$2" pad
+  pad=$(((COLS - visible) / 2))
+  ((pad < 0)) && pad=0
+  FRAME+="$(printf '%*s' "$pad" '')${text}"$'\e[K\n'
+}
+
+blank() {
+  FRAME+=$'\e[K\n'
+}
+
+truncate() {
+  local text="$1" max="$2"
+  if ((${#text} > max)); then
+    printf '%s…' "${text:0:max-1}"
+  else
+    printf '%s' "$text"
+  fi
+}
+
+draw() {
+  local status title artist album len pos rows width filled bar icon
+  status=$(pc status)
+  COLS=$(tput cols)
+  rows=$(tput lines)
+  FRAME=""
+  width=$((COLS - 8))
+  ((width > 60)) && width=60
+  ((width < 10)) && width=10
+
+  for ((i = 0; i < (rows - 9) / 2; i++)); do blank; done
+
+  if [[ -z $status ]]; then
+    center "${lav}♪  ничего не играет  ♪${reset}" 22
+    blank
+    center "${dim}включи Яндекс Музыку${reset}" 20
+    printf '\e[?2026h\e[H%s\e[J\e[?2026l' "$FRAME"
+    return
+  fi
+
+  title=$(truncate "$(pc metadata xesam:title)" "$width")
+  artist=$(truncate "$(pc metadata xesam:artist)" "$width")
+  album=$(truncate "$(pc metadata xesam:album)" "$width")
+  len=$(pc metadata mpris:length)
+  pos=$(pc position)
+  len=$((${len:-0} / 1000000))
+  pos=${pos%.*}
+  pos=${pos:-0}
+
+  if ((len > 0)); then
+    filled=$((pos * width / len))
+  else
+    filled=0
+  fi
+  ((filled > width)) && filled=$width
+  bar="${lav}$(printf '━%.0s' $(seq 1 $filled))${dim}$(printf '─%.0s' $(seq 1 $((width - filled))))${reset}"
+  ((filled == 0)) && bar="${dim}$(printf '─%.0s' $(seq 1 $width))${reset}"
+
+  [[ $status == Playing ]] && icon="▶" || icon="⏸"
+
+  center "${pink}${bold}${title}${reset}" ${#title}
+  center "${fg}${artist}${reset}" ${#artist}
+  center "${dim}${album}${reset}" ${#album}
+  blank
+  center "$bar" "$width"
+  local times="$(fmt_time "$pos") / $(fmt_time "$len")"
+  center "${cyan}${icon}  ${times}${reset}" $((${#times} + 3))
+  blank
+  center "${dim}space ⏯   n ⏭   p ⏮   +/- 🔊   q ✕${reset}" 32
+
+  printf '\e[?2026h\e[H%s\e[J\e[?2026l' "$FRAME"
+}
+
+cleanup() {
+  printf '\e[?25h\e[H\e[2J'
+  stty echo 2>/dev/null
+  exit 0
+}
+trap cleanup INT TERM
+trap draw WINCH
+
+printf '\e]2;Now Playing\a\e[?25l\e[2J'
+stty -echo 2>/dev/null
+
+while true; do
+  draw
+  if read -rsn1 -t 1 key; then
+    case $key in
+      " ") pc play-pause ;;
+      n) pc next ;;
+      p) pc previous ;;
+      +|=) pc volume 0.05+ ;;
+      -) pc volume 0.05- ;;
+      q) cleanup ;;
+    esac
+  fi
+done
