@@ -5,7 +5,7 @@ Kuromi rice для Omarchy: тема, cava, fastfetch, now-playing, power menu �
 ## Установка на новый ПК
 
 ```bash
-git clone https://github.com/rual1sher/kuromi-rice.git ~/Projects/kuromi-rice
+git clone https://github.com/rual1sher/kurumi-rice.git ~/Projects/kuromi-rice
 ~/Projects/kuromi-rice/install.sh
 ```
 
